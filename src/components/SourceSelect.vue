@@ -10,7 +10,7 @@ import DouSelect from './base/DouSelect.vue'
 const { t } = useI18n()
 
 const translatorStore = useTranslatorStore()
-const { realSourceLanguage, sourceLanguage, isLanguageDetectorSupported } = storeToRefs(translatorStore)
+const { realSourceLanguage, sourceLanguage, isLanguageDetectorSupported, supportMoreLanguages } = storeToRefs(translatorStore)
 
 const displayName = useDisplayName()
 
@@ -35,7 +35,8 @@ const options = computed(() => {
     disabled: !_isLanguageDetectorSupported,
   })
 
-  LANGUAGES.forEach((item) => {
+  const langList = supportMoreLanguages.value ? LANGUAGES : ['zh-Hans', 'en']
+  langList.forEach((item) => {
     finalOptions.push({
       label: _displayName.getLabel(item),
       value: item,

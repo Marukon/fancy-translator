@@ -35,6 +35,7 @@ const {
   isTranslating,
   translateResult,
   languageDetectionList,
+  supportMoreLanguages,
 } = storeToRefs(translatorStore)
 
 const disabledTextarea = computed(() => {
@@ -72,20 +73,31 @@ watch(autoCleanPdf, (val) => {
   }
 })
 
-function handleSwap() {
-  const currentResult = replacedTranslationResult.value
-  if (!currentResult && !sourceText.value) {
-    return
+function handleSwapLanguages() {
+  let curSource = sourceLanguage.value === 'auto'
+    ? (realSourceLanguage.value || 'zh-Hans')
+    : sourceLanguage.value
+  let curTarget = targetLanguage.value === 'auto'
+    ? (realTargetLanguage.value || 'en')
+    : targetLanguage.value
+
+  if (curSource.startsWith('zh')) {
+    curSource = 'zh-Hans'
+  }
+  if (curTarget.startsWith('zh')) {
+    curTarget = 'zh-Hans'
   }
 
-  const nextSource = currentResult || ''
-  if (sourceLanguage.value !== 'auto' || targetLanguage.value !== 'auto') {
-    const oldSource = sourceLanguage.value === 'auto' ? realSourceLanguage.value : sourceLanguage.value
-    const oldTarget = targetLanguage.value === 'auto' ? realTargetLanguage.value : targetLanguage.value
-    sourceLanguage.value = oldTarget || 'auto'
-    targetLanguage.value = oldSource || 'auto'
+  sourceLanguage.value = curTarget
+  targetLanguage.value = curSource
+}
+
+function handleSwapContent() {
+  const currentResult = replacedTranslationResult.value
+  if (!currentResult) {
+    return
   }
-  sourceText.value = nextSource
+  sourceText.value = currentResult
 }
 
 function handleCleanPdf() {
@@ -143,7 +155,7 @@ function handleHistorySelect(item: HistoryItem) {
               small
               :title="t('swap_languages')"
               class="flex-shrink-0 flex items-center justify-center p-1.5!"
-              @click="handleSwap"
+              @click="handleSwapLanguages"
             >
               <div class="i-mingcute-transfer-line text-base" />
             </DouButton>
@@ -223,6 +235,32 @@ function handleHistorySelect(item: HistoryItem) {
           </div>
         </div>
 
+        <!-- 桌面端文本互换按钮（居中悬浮在两个文本框之间） -->
+        <div class="hidden md:flex absolute left-1/2 top-28 -translate-x-1/2 z-10">
+          <DouButton
+            :disabled="!replacedTranslationResult"
+            :title="t('swap_content')"
+            class="rounded-full! w-10 h-10 p-0! shadow-lg shadow-dark-500/10 dark:shadow-light-500/10 bg-white/95 dark:bg-dark-700/95 backdrop-blur-md flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-dark-600 dark:text-light-200 border-1 border-dark-500/20 dark:border-light-300/20"
+            @click="handleSwapContent"
+          >
+            <div class="i-mingcute-transfer-line text-lg" />
+          </DouButton>
+        </div>
+
+        <!-- 移动端文本互换按钮 -->
+        <div class="flex md:hidden justify-center my--2 w-full z-10">
+          <DouButton
+            :disabled="!replacedTranslationResult"
+            small
+            :title="t('swap_content')"
+            class="rounded-full! py-1! px-3! flex items-center gap-1.5 text-xs shadow-md bg-white/90 dark:bg-dark-700/90 backdrop-blur-md border-1 border-dark-500/20 dark:border-light-300/20"
+            @click="handleSwapContent"
+          >
+            <div class="i-mingcute-transfer-line rotate-90 text-sm" />
+            <span>{{ t('swap_content') }}</span>
+          </DouButton>
+        </div>
+
         <div class="f-ring flex flex-col max-h-75dvh min-h-200px w-full md:w-1/2">
           <h1
             class="text-2xl font-light p-4 flex select-none items-center justify-between text-dark-500/50 dark:text-light-300/50"
@@ -235,7 +273,7 @@ function handleHistorySelect(item: HistoryItem) {
           </h1>
           <div class="p-4 pt-0 overflow-y-auto text-xl flex flex-col gap-4">
             <div
-              v-if="languageDetectionList?.length && sourceLanguage === 'auto'"
+              v-if="supportMoreLanguages && languageDetectionList?.length && sourceLanguage === 'auto'"
               class="f-ring lh-[normal] text-sm p-3 flex flex-col gap-2 select-none items-start justify-center rounded-xl!"
             >
               <h1>

@@ -3,6 +3,7 @@ import ColorModeSwitcher from './components/ColorModeSwitcher.vue'
 import LangSwitcher from './components/LangSwitcher.vue'
 import Logo from './components/logo.vue'
 import ReloadPrompt from './components/ReloadPrompt.vue'
+import SettingsModal from './components/SettingsModal.vue'
 import { useDarkMode } from './composables/useDarkMode'
 
 useDarkMode()
@@ -19,6 +20,7 @@ useDarkMode()
       Fancy Translator
     </h1>
     <div class="flex gap-2 items-center">
+      <SettingsModal />
       <ColorModeSwitcher />
       <LangSwitcher />
     </div>
@@ -26,7 +28,10 @@ useDarkMode()
   <main class="flex-grow">
     <router-view />
   </main>
-  <footer class="flex justify-end select-none items-center py-4">
+  <footer class="flex flex-col items-end gap-1 select-none py-4">
+    <p class="whitespace-nowrap text-xs md:text-sm text-pink-500 dark:text-pink-400 font-medium">
+      Lovingly created by Bubu for Yier. ❤️
+    </p>
     <p class="whitespace-nowrap text-xs md:text-sm opacity-60">
       Based on open-source project by <a
         href="https://github.com/daidr/fancy-translator" target="_blank"

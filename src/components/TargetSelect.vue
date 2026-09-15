@@ -11,7 +11,7 @@ const { t } = useI18n()
 
 const translatorStore = useTranslatorStore()
 
-const { targetLanguage, realTargetLanguage } = storeToRefs(translatorStore)
+const { targetLanguage, realTargetLanguage, supportMoreLanguages } = storeToRefs(translatorStore)
 
 const displayName = useDisplayName()
 
@@ -34,7 +34,8 @@ const options = computed(() => {
     value: 'auto',
   })
 
-  LANGUAGES.forEach((item) => {
+  const langList = supportMoreLanguages.value ? LANGUAGES : ['zh-Hans', 'en']
+  langList.forEach((item) => {
     finalOptions.push({
       label: _displayName.getLabel(item),
       value: item,

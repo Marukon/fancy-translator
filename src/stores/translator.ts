@@ -1,40 +1,69 @@
-import { useThrottleFn } from '@vueuse/core'
+import { useStorage, useThrottleFn } from '@vueuse/core'
 import { acceptHMRUpdate, defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { LANGUAGES } from '@/constants/lang'
 
-let _t: ReturnType<typeof useI18n>['t'] | undefined
-
-interface TranslatorStatusItem {
-  sourceLanguage: string
-  targetLanguage: string
-  status: 'ready' | 'error' | 'downloading'
-  noNeedToDownload?: boolean
-  progress?: number
-  error?: Error
-  signal?: AbortSignal
-  controller?: AbortController
-  instance?: TranslatorInstance
+export interface LanguageDetectionResult {
+  detectedLanguage: string
+  confidence: number
 }
 
-interface LanguageDetectorStatusItem {
-  status: 'ready' | 'error' | 'downloading'
+export type TranslatorStatusItem = {
+  sourceLanguage: string
+  targetLanguage: string
+} & (
+  {
+    status: 'ready'
+    instance: any
+  } | {
+    status: 'error'
+    error: Error
+  } | {
+    status: 'downloading'
+    progress: number
+    signal?: AbortSignal
+    controller?: AbortController
+    instance?: any
+    noNeedToDownload?: boolean
+  }
+)
+
+export interface LanguageDetectorStatusItem {
+  status: 'ready' | 'downloading' | 'error'
   progress?: number
   error?: Error
   signal?: AbortSignal
   controller?: AbortController
-  instance?: LanguageDetectorInstance
+  instance?: any
 }
 
 export const useTranslatorStore = defineStore('translator', () => {
-  if (!_t) {
-    _t = useI18n().t
-  }
-  const t = _t
+  const { t } = useI18n()
+
   const isTranslatorSupported = ref('Translator' in globalThis)
   const isLanguageDetectorSupported = ref('LanguageDetector' in globalThis)
   const translatorStatus = ref<TranslatorStatusItem>()
   const languageDetectorStatus = ref<LanguageDetectorStatusItem>()
+  const supportMoreLanguages = useStorage('fancy_support_more_languages', false)
+
+  watch(supportMoreLanguages, (val) => {
+    if (!val) {
+      const allowed = ['auto', 'zh-Hans', 'en']
+      let changed = false
+      if (!allowed.includes(_sourceLanguage.value)) {
+        _sourceLanguage.value = 'auto'
+        changed = true
+      }
+      if (!allowed.includes(_targetLanguage.value)) {
+        _targetLanguage.value = 'auto'
+        changed = true
+      }
+      if (changed) {
+        translate(_sourceText.value)
+      }
+    }
+  })
 
   let firstTime = true
   const _sourceText = ref('')
@@ -231,7 +260,22 @@ export const useTranslatorStore = defineStore('translator', () => {
         return
       }
       languageDetectionList.value = detectedLanguage
-      sourceLanguage = detectedLanguage[0]?.detectedLanguage || 'und'
+      const rawDetected = detectedLanguage[0]?.detectedLanguage || 'und'
+      if (!supportMoreLanguages.value) {
+        // 默认模式仅支持中英文：如果检测为中文相关则为 zh，否则为 en
+        if (rawDetected.startsWith('zh')) {
+          sourceLanguage = 'zh'
+        }
+        else if (rawDetected === 'und') {
+          sourceLanguage = 'und'
+        }
+        else {
+          sourceLanguage = 'en'
+        }
+      }
+      else {
+        sourceLanguage = rawDetected
+      }
       if (sourceLanguage === 'und') {
         // 未知语言
         sourceLanguage = 'und'
@@ -380,6 +424,7 @@ export const useTranslatorStore = defineStore('translator', () => {
     translateResult,
     realSourceLanguage: _realSourceLanguage,
     languageDetectionList,
+    supportMoreLanguages,
   }
 })
 
