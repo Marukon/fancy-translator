@@ -43,8 +43,8 @@ export default defineConfig({
       manifest: {
         start_url: '/',
         display: 'standalone',
-        name: 'Fancy Translator',
-        short_name: 'Fancy Translator',
+        name: 'Bubu Fanyi',
+        short_name: 'Bubu Fanyi',
         icons: [
           {
             src: '/web-app-manifest-192x192.png',
