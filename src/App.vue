@@ -18,23 +18,21 @@ useDarkMode()
       </div>
       Fancy Translator
     </h1>
+    <div class="flex gap-2 items-center">
+      <ColorModeSwitcher />
+      <LangSwitcher />
+    </div>
   </header>
   <main class="flex-grow">
     <router-view />
   </main>
-  <footer class="flex justify-end select-none items-end">
-    <div class="px-2 flex gap-2 items-end text-sm md:text-base flex-col">
-      <div class="flex gap-2">
-        <ColorModeSwitcher />
-        <LangSwitcher />
-      </div>
-      <p class="whitespace-nowrap text-xs md:text-sm opacity-60">
-        Based on open-source project by <a
-          href="https://github.com/daidr/fancy-translator" target="_blank"
-          rel="noopener" class="underline hover:opacity-100"
-        >DAIDR</a>
-      </p>
-    </div>
+  <footer class="flex justify-end select-none items-center py-4">
+    <p class="whitespace-nowrap text-xs md:text-sm opacity-60">
+      Based on open-source project by <a
+        href="https://github.com/daidr/fancy-translator" target="_blank"
+        rel="noopener" class="underline hover:opacity-100"
+      >DAIDR</a>
+    </p>
   </footer>
   <ReloadPrompt />
 </template>

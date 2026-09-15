@@ -27,6 +27,7 @@
   "no_history": "暂无历史记录",
   "clean_pdf": "清洗换行",
   "clean_pdf_title": "清洗 PDF 换行与空格",
+  "auto_clean_pdf": "自动清洗换行",
   "swap_languages": "对调语言与内容",
   "clear_input": "清空输入",
   "paste": "粘贴",

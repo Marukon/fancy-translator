@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useTextareaAutosize } from '@vueuse/core'
+import { useStorage, useTextareaAutosize } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -20,6 +20,7 @@ const displayName = useDisplayName()
 const translatorStore = useTranslatorStore()
 const historyStore = useHistoryStore()
 const historyOpen = ref(false)
+const autoCleanPdf = useStorage('fancy_auto_clean_pdf', false)
 
 const {
   isTranslatorSupported,
@@ -64,6 +65,13 @@ watch(isTranslating, (translating, wasTranslating) => {
   }
 })
 
+// 自动清洗开关打开时，立即清洗当前已有文本
+watch(autoCleanPdf, (val) => {
+  if (val && sourceText.value) {
+    sourceText.value = cleanPdfText(sourceText.value)
+  }
+})
+
 function handleSwap() {
   const currentResult = replacedTranslationResult.value
   if (!currentResult && !sourceText.value) {
@@ -91,11 +99,23 @@ function handleClear() {
   sourceText.value = ''
 }
 
+function handlePasteEvent(e: ClipboardEvent) {
+  if (!autoCleanPdf.value) {
+    return
+  }
+  const pastedText = e.clipboardData?.getData('text')
+  if (!pastedText) {
+    return
+  }
+  e.preventDefault()
+  sourceText.value = cleanPdfText(pastedText)
+}
+
 async function handlePaste() {
   try {
     const clip = await navigator.clipboard.readText()
     if (clip) {
-      sourceText.value = clip
+      sourceText.value = autoCleanPdf.value ? cleanPdfText(clip) : clip
     }
   }
   catch (e) {
@@ -116,7 +136,7 @@ function handleHistorySelect(item: HistoryItem) {
     </div>
     <template v-else>
       <div class="flex flex-col gap-4 items-start relative md:flex-row">
-        <div class="f-ring flex flex-col gap-4 w-full md:w-1/2 max-h-60dvh min-h-180px h-fit min-w-0">
+        <div class="f-ring flex flex-col gap-4 w-full md:w-1/2 max-h-75dvh min-h-200px h-fit min-w-0">
           <div class="toolbar flex gap-2 items-center px-4 pt-4 min-w-0">
             <SourceSelect class="flex-shrink min-w-0" />
             <DouButton
@@ -143,10 +163,12 @@ function handleHistorySelect(item: HistoryItem) {
           </div>
           <textarea
             ref="textarea" v-model="sourceText" :disabled="disabledTextarea" name="input" row="1"
-            :placeholder="t('input_placeholder')" class="outline-none w-full resize-none px-4 text-xl flex-grow min-h-0"
+            :placeholder="t('input_placeholder')"
+            class="outline-none w-full resize-none px-4 text-xl flex-grow min-h-0 text-justify"
+            @paste="handlePasteEvent"
           />
           <div class="toolbar flex gap-2 items-center px-4 pb-4 justify-between">
-            <div class="flex items-center gap-1.5 flex-wrap">
+            <div class="flex items-center gap-2 flex-wrap">
               <!-- 清洗 PDF 换行 -->
               <DouButton
                 v-if="sourceText"
@@ -158,6 +180,16 @@ function handleHistorySelect(item: HistoryItem) {
                 <div class="i-mingcute-broom-line text-sm" />
                 <span>{{ t('clean_pdf') }}</span>
               </DouButton>
+
+              <!-- 自动清洗开关 -->
+              <label class="flex items-center gap-1 text-xs select-none cursor-pointer text-dark-500/80 dark:text-light-500/80 hover:opacity-100 transition py-1 px-1 rounded hover:bg-dark-500/5 dark:hover:bg-light-300/5">
+                <input
+                  v-model="autoCleanPdf"
+                  type="checkbox"
+                  class="cursor-pointer accent-amber-500 w-3.5 h-3.5 rounded"
+                >
+                <span>{{ t('auto_clean_pdf') }}</span>
+              </label>
 
               <!-- 清空输入 -->
               <DouButton
@@ -191,7 +223,7 @@ function handleHistorySelect(item: HistoryItem) {
           </div>
         </div>
 
-        <div class="f-ring flex flex-col max-h-60dvh min-h-180px w-full md:w-1/2">
+        <div class="f-ring flex flex-col max-h-75dvh min-h-200px w-full md:w-1/2">
           <h1
             class="text-2xl font-light p-4 flex select-none items-center justify-between text-dark-500/50 dark:text-light-300/50"
           >
@@ -292,7 +324,7 @@ function handleHistorySelect(item: HistoryItem) {
                 {{ translateResult?.error?.message }}
               </div>
               <template v-else>
-                <div class="whitespace-pre-wrap">
+                <div class="whitespace-pre-wrap text-justify">
                   {{ replacedTranslationResult || '...' }}
                 </div>
                 <div class="toolbar flex gap-2 items-center justify-end pt-4 text-base">
