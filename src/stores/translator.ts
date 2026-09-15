@@ -41,20 +41,14 @@ export const useTranslatorStore = defineStore('translator', () => {
 
   watch(supportMoreLanguages, (val) => {
     if (!val) {
-      const allowed = ['auto', 'zh-Hans', 'en']
-      let changed = false
-      if (!allowed.includes(_sourceLanguage.value)) {
-        _sourceLanguage.value = 'auto'
-        changed = true
-      }
-      if (!allowed.includes(_targetLanguage.value)) {
-        _targetLanguage.value = 'auto'
-        changed = true
-      }
-      if (changed) {
-        translate(_sourceText.value)
-      }
+      _sourceLanguage.value = 'auto'
+      _targetLanguage.value = 'auto'
     }
+    else {
+      _sourceLanguage.value = 'auto'
+      _targetLanguage.value = 'zh-Hans'
+    }
+    translate(_sourceText.value)
   })
 
   let firstTime = true
@@ -63,7 +57,7 @@ export const useTranslatorStore = defineStore('translator', () => {
 
   const _sourceLanguage = ref(isLanguageDetectorSupported.value ? 'auto' : 'en')
   const _realSourceLanguage = ref('')
-  const _targetLanguage = ref('auto')
+  const _targetLanguage = ref(supportMoreLanguages.value ? 'zh-Hans' : 'auto')
   const translateController = ref<AbortController>()
   const isTranslating = ref(false)
   const translateResult = ref<{
@@ -125,7 +119,7 @@ export const useTranslatorStore = defineStore('translator', () => {
         sourceLanguage = isLanguageDetectorSupported.value ? 'auto' : 'zh-Hans'
       }
       if (!targetLanguage) {
-        const defaultTargetLanguage = 'auto'
+        const defaultTargetLanguage = supportMoreLanguages.value ? 'zh-Hans' : 'auto'
         targetLanguage = defaultTargetLanguage
       }
     }

@@ -152,6 +152,7 @@ function handleHistorySelect(item: HistoryItem) {
           <div class="toolbar flex gap-2 items-center px-4 pt-4 min-w-0">
             <SourceSelect class="flex-shrink min-w-0" />
             <DouButton
+              v-if="supportMoreLanguages"
               small
               :title="t('swap_languages')"
               class="flex-shrink-0 flex items-center justify-center p-1.5!"
