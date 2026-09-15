@@ -9,28 +9,20 @@ export interface LanguageDetectionResult {
   confidence: number
 }
 
-export type TranslatorStatusItem = {
+export interface TranslatorStatusItem {
   sourceLanguage: string
   targetLanguage: string
-} & (
-  {
-    status: 'ready'
-    instance: any
-  } | {
-    status: 'error'
-    error: Error
-  } | {
-    status: 'downloading'
-    progress: number
-    signal?: AbortSignal
-    controller?: AbortController
-    instance?: any
-    noNeedToDownload?: boolean
-  }
-)
+  status: 'ready' | 'error' | 'downloading'
+  noNeedToDownload?: boolean
+  progress?: number
+  error?: Error
+  signal?: AbortSignal
+  controller?: AbortController
+  instance?: any
+}
 
 export interface LanguageDetectorStatusItem {
-  status: 'ready' | 'downloading' | 'error'
+  status: 'ready' | 'error' | 'downloading'
   progress?: number
   error?: Error
   signal?: AbortSignal
@@ -202,12 +194,16 @@ export const useTranslatorStore = defineStore('translator', () => {
         },
         // expectedInputLanguages: LANGUAGES,
       })
-      languageDetectorStatus.value.instance = instance
-      languageDetectorStatus.value.status = 'ready'
+      if (languageDetectorStatus.value) {
+        languageDetectorStatus.value.instance = instance
+        languageDetectorStatus.value.status = 'ready'
+      }
     }
     catch (error) {
-      languageDetectorStatus.value.error = error as Error
-      languageDetectorStatus.value.status = 'error'
+      if (languageDetectorStatus.value) {
+        languageDetectorStatus.value.error = error as Error
+        languageDetectorStatus.value.status = 'error'
+      }
     }
   }
 
@@ -306,7 +302,7 @@ export const useTranslatorStore = defineStore('translator', () => {
       return
     }
     try {
-      const result = translatorStatus.value.instance.translateStreaming(text.trim().replace(/\n/g, '<br>'), {
+      const result = translatorStatus.value!.instance.translateStreaming(text.trim().replace(/\n/g, '<br>'), {
         signal: controller.signal,
       })
       if (isOutdated()) {
@@ -398,15 +394,19 @@ export const useTranslatorStore = defineStore('translator', () => {
         if (signal.aborted) {
           return
         }
-        translatorStatus.value.instance = instance
-        translatorStatus.value.status = 'ready'
+        if (translatorStatus.value) {
+          translatorStatus.value.instance = instance
+          translatorStatus.value.status = 'ready'
+        }
       }
       catch (error) {
         if (signal.aborted) {
           return
         }
-        translatorStatus.value.error = error as Error
-        translatorStatus.value.status = 'error'
+        if (translatorStatus.value) {
+          translatorStatus.value.error = error as Error
+          translatorStatus.value.status = 'error'
+        }
       }
     }
   }
