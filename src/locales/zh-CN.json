@@ -13,6 +13,8 @@
   "language_detection_failed": "无法自动识别输入语言",
   "auto_detect": "自动检测",
   "auto_detect_with_lang": "自动检测 ({lang})",
+  "auto": "自动",
+  "auto_with_lang": "自动 ({lang})",
   "copy": "复制",
   "copied": "已复制",
   "listen": "朗读",

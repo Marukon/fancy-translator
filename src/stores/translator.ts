@@ -42,7 +42,7 @@ export const useTranslatorStore = defineStore('translator', () => {
 
   const _sourceLanguage = ref(isLanguageDetectorSupported.value ? 'auto' : 'en')
   const _realSourceLanguage = ref('')
-  const _targetLanguage = ref('zh-Hans')
+  const _targetLanguage = ref('auto')
   const translateController = ref<AbortController>()
   const isTranslating = ref(false)
   const translateResult = ref<{
@@ -53,6 +53,20 @@ export const useTranslatorStore = defineStore('translator', () => {
     error: undefined,
     result: '',
     duration: undefined,
+  })
+
+  const realTargetLanguage = computed(() => {
+    if (_targetLanguage.value !== 'auto') {
+      return _targetLanguage.value
+    }
+    const effectiveSource = (_sourceLanguage.value === 'auto'
+      ? _realSourceLanguage.value
+      : _sourceLanguage.value).toLowerCase()
+
+    if (effectiveSource.startsWith('zh')) {
+      return 'en'
+    }
+    return 'zh-Hans'
   })
 
   const sourceLanguage = computed({
@@ -86,20 +100,25 @@ export const useTranslatorStore = defineStore('translator', () => {
     if (!sourceLanguage || !targetLanguage) {
       // 若存在空参数，首先进行空参数补全
       if (!sourceLanguage) {
-        // 默认源语言为中文
-        sourceLanguage = isLanguageDetectorSupported ? 'auto' : 'zh-Hans'
+        // 默认源语言为中文或自动检测
+        sourceLanguage = isLanguageDetectorSupported.value ? 'auto' : 'zh-Hans'
       }
       if (!targetLanguage) {
-        const defaultTargetLanguage = 'en'
+        const defaultTargetLanguage = 'auto'
         targetLanguage = defaultTargetLanguage
       }
     }
     _sourceLanguage.value = sourceLanguage
     _targetLanguage.value = targetLanguage
 
+    if (_sourceLanguage.value !== 'auto') {
+      _realSourceLanguage.value = _sourceLanguage.value
+    }
+
     // 若源语言为自动检测，但是不支持语言检测，默认源语言为中文
-    if (_sourceLanguage.value === 'auto' && !isLanguageDetectorSupported) {
+    if (_sourceLanguage.value === 'auto' && !isLanguageDetectorSupported.value) {
       _sourceLanguage.value = 'zh-Hans'
+      _realSourceLanguage.value = 'zh-Hans'
     }
 
     // 若源语言为自动检测，则初始化LanguageDetector
@@ -169,14 +188,22 @@ export const useTranslatorStore = defineStore('translator', () => {
       updateLangPair({ sourceLanguage: _sourceLanguage.value, targetLanguage: _targetLanguage.value })
     }
     const start = performance.now()
-    if (!text || !_sourceLanguage.value || !_targetLanguage.value) {
+    if (!text?.trim() || !_sourceLanguage.value || !_targetLanguage.value) {
       isTranslating.value = false
+      translateResult.value = {
+        error: undefined,
+        result: '',
+        duration: undefined,
+      }
+      languageDetectionList.value = []
+      if (_sourceLanguage.value === 'auto') {
+        _realSourceLanguage.value = ''
+      }
       return
     }
     isTranslating.value = true
     translateController.value?.abort()
     let sourceLanguage = _sourceLanguage.value
-    const targetLanguage = _targetLanguage.value
     const controller = new AbortController()
     translateController.value = controller
     function isOutdated() {
@@ -204,7 +231,7 @@ export const useTranslatorStore = defineStore('translator', () => {
         return
       }
       languageDetectionList.value = detectedLanguage
-      sourceLanguage = detectedLanguage[0].detectedLanguage
+      sourceLanguage = detectedLanguage[0]?.detectedLanguage || 'und'
       if (sourceLanguage === 'und') {
         // 未知语言
         sourceLanguage = 'und'
@@ -218,6 +245,8 @@ export const useTranslatorStore = defineStore('translator', () => {
     else {
       _realSourceLanguage.value = sourceLanguage
     }
+
+    const targetLanguage = realTargetLanguage.value
 
     if (!translatorStatus.value?.instance || translatorStatus.value?.sourceLanguage !== sourceLanguage || translatorStatus.value?.targetLanguage !== targetLanguage) {
       translatorStatus.value?.instance?.destroy()
@@ -280,28 +309,30 @@ export const useTranslatorStore = defineStore('translator', () => {
     if (signal.aborted) {
       return
     }
+    const currentSourceLang = _realSourceLanguage.value
+    const currentTargetLang = realTargetLanguage.value
     const status = await window.Translator.availability({
-      sourceLanguage: _realSourceLanguage.value,
-      targetLanguage: _targetLanguage.value,
+      sourceLanguage: currentSourceLang,
+      targetLanguage: currentTargetLang,
     })
     if (signal.aborted) {
       return
     }
     if (status === 'unavailable') {
       translatorStatus.value = {
-        sourceLanguage: _realSourceLanguage.value,
-        targetLanguage: _targetLanguage.value,
+        sourceLanguage: currentSourceLang,
+        targetLanguage: currentTargetLang,
         status: 'error',
         error: new Error(t('lang_pair_not_supported', {
-          sourceLang: _realSourceLanguage.value,
-          targetLang: _targetLanguage.value,
+          sourceLang: currentSourceLang,
+          targetLang: currentTargetLang,
         })),
       }
     }
     else if (status === 'downloading' || status === 'downloadable' || status === 'available') {
       translatorStatus.value = {
-        sourceLanguage: _realSourceLanguage.value,
-        targetLanguage: _targetLanguage.value,
+        sourceLanguage: currentSourceLang,
+        targetLanguage: currentTargetLang,
         noNeedToDownload: status === 'available',
         status: 'downloading',
         error: undefined,
@@ -309,8 +340,8 @@ export const useTranslatorStore = defineStore('translator', () => {
       }
       try {
         const instance = await window.Translator.create({
-          sourceLanguage: _realSourceLanguage.value,
-          targetLanguage: _targetLanguage.value,
+          sourceLanguage: currentSourceLang,
+          targetLanguage: currentTargetLang,
           monitor(monitor) {
             monitor.addEventListener('downloadprogress', (e) => {
               if (signal.aborted) {
@@ -341,6 +372,7 @@ export const useTranslatorStore = defineStore('translator', () => {
     isLanguageDetectorSupported,
     sourceLanguage,
     targetLanguage,
+    realTargetLanguage,
     translatorStatus,
     languageDetectorStatus,
     sourceText,

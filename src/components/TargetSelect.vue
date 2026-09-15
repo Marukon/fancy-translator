@@ -11,17 +11,28 @@ const { t } = useI18n()
 
 const translatorStore = useTranslatorStore()
 
-const { targetLanguage } = storeToRefs(translatorStore)
+const { targetLanguage, realTargetLanguage } = storeToRefs(translatorStore)
 
 const displayName = useDisplayName()
 
 const options = computed(() => {
   const _displayName = displayName.value
+  const _realTargetLanguage = realTargetLanguage.value
+  const _targetLanguage = targetLanguage.value
   const finalOptions: {
     value: string
     label: string
     disabled?: boolean
   }[] = []
+
+  finalOptions.push({
+    label: _realTargetLanguage && _targetLanguage === 'auto'
+      ? `${t('auto_with_lang', {
+        lang: _displayName.getLabel(_realTargetLanguage),
+      })}`
+      : t('auto'),
+    value: 'auto',
+  })
 
   LANGUAGES.forEach((item) => {
     finalOptions.push({

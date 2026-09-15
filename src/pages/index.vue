@@ -24,6 +24,7 @@ const {
   sourceLanguage,
   realSourceLanguage,
   targetLanguage,
+  realTargetLanguage,
   isTranslating,
   translateResult,
   languageDetectionList,
@@ -173,7 +174,7 @@ const { t } = useI18n()
                   {{ replacedTranslationResult || '...' }}
                 </div>
                 <div class="toolbar flex gap-2 items-center justify-end pt-4 text-base">
-                  <SpeechButton :text="replacedTranslationResult" :lang="targetLanguage" />
+                  <SpeechButton :text="replacedTranslationResult" :lang="realTargetLanguage" />
                   <CopyButton :text="replacedTranslationResult" />
                 </div>
               </template>

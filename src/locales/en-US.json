@@ -13,6 +13,8 @@
   "language_detection_failed": "Unable to automatically detect input language",
   "auto_detect": "Auto Detect",
   "auto_detect_with_lang": "Auto Detect ({lang})",
+  "auto": "Auto",
+  "auto_with_lang": "Auto ({lang})",
   "copy": "Copy",
   "copied": "Copied",
   "listen": "Listen",
