@@ -9,7 +9,7 @@ useDarkMode()
 </script>
 
 <template>
-  <header class="select-none flex  justify-between items-center">
+  <header class="select-none flex justify-between items-center">
     <h1 class="text-xl md:text-3xl text-dark-500/80 dark:text-light-50/80 flex items-center gap-0.5em">
       <div
         class="p-1.5 rounded-lg ring-1 text-current ring-dark-500/20 dark:ring-light-300/20 bg-white/30 dark:bg-dark-700/30 backdrop-blur-md shadow-xl shadow-dark-500/8 dark:shadow-light-500/8"
@@ -18,37 +18,21 @@ useDarkMode()
       </div>
       Fancy Translator
     </h1>
-    <nav>
-      <ul class="flex items-center gap-3 text-base md:text-xl">
-        <li>
-          <a
-            href="https://github.com/daidr/fancy-translator" target="_blank" rel="noopener"
-            class="inline-flex items-center gap-1"
-          >
-            <div class="i-mingcute-github-line" />
-            GitHub
-          </a>
-        </li>
-      </ul>
-    </nav>
   </header>
   <main class="flex-grow">
     <router-view />
   </main>
-  <footer class="flex justify-between select-none items-end">
-    <p class="px-2 whitespace-nowrap text-sm md:text-base">
-      Coded with ❤️
-    </p>
+  <footer class="flex justify-end select-none items-end">
     <div class="px-2 flex gap-2 items-end text-sm md:text-base flex-col">
       <div class="flex gap-2">
         <ColorModeSwitcher />
         <LangSwitcher />
       </div>
-      <p class="whitespace-nowrap">
-        &copy; {{ new Date().getFullYear() }} <a
-          href="https://github.com/daidr" target="_blank"
-          rel="noopener"
-        >DAIDR</a>.
+      <p class="whitespace-nowrap text-xs md:text-sm opacity-60">
+        Based on open-source project by <a
+          href="https://github.com/daidr/fancy-translator" target="_blank"
+          rel="noopener" class="underline hover:opacity-100"
+        >DAIDR</a>
       </p>
     </div>
   </footer>

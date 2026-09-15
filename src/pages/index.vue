@@ -1,19 +1,25 @@
 <script setup lang="ts">
 import { useTextareaAutosize } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import DouButton from '@/components/base/DouButton.vue'
 import DouProgress from '@/components/base/DouProgress.vue'
 import CopyButton from '@/components/CopyButton.vue'
+import HistoryDrawer from '@/components/HistoryDrawer.vue'
 import SourceSelect from '@/components/SourceSelect.vue'
 import SpeechButton from '@/components/SpeechButton.vue'
 import TargetSelect from '@/components/TargetSelect.vue'
 import { useDisplayName } from '@/composables/useDisplayName'
+import { type HistoryItem, useHistoryStore } from '@/stores/history'
 import { useTranslatorStore } from '@/stores/translator'
+import { cleanPdfText } from '@/utils/text.util'
 
 const displayName = useDisplayName()
 
 const translatorStore = useTranslatorStore()
+const historyStore = useHistoryStore()
+const historyOpen = ref(false)
 
 const {
   isTranslatorSupported,
@@ -43,6 +49,63 @@ const replacedTranslationResult = computed(() => {
 })
 
 const { t } = useI18n()
+
+// 自动写入历史记录（当翻译完成且有内容时）
+watch(isTranslating, (translating, wasTranslating) => {
+  if (wasTranslating && !translating) {
+    if (sourceText.value.trim() && replacedTranslationResult.value.trim()) {
+      historyStore.addHistory({
+        sourceText: sourceText.value,
+        targetText: replacedTranslationResult.value,
+        sourceLang: translatorStatus.value?.sourceLanguage || realSourceLanguage.value || 'auto',
+        targetLang: translatorStatus.value?.targetLanguage || realTargetLanguage.value || 'zh-Hans',
+      })
+    }
+  }
+})
+
+function handleSwap() {
+  const currentResult = replacedTranslationResult.value
+  if (!currentResult && !sourceText.value) {
+    return
+  }
+
+  const nextSource = currentResult || ''
+  if (sourceLanguage.value !== 'auto' || targetLanguage.value !== 'auto') {
+    const oldSource = sourceLanguage.value === 'auto' ? realSourceLanguage.value : sourceLanguage.value
+    const oldTarget = targetLanguage.value === 'auto' ? realTargetLanguage.value : targetLanguage.value
+    sourceLanguage.value = oldTarget || 'auto'
+    targetLanguage.value = oldSource || 'auto'
+  }
+  sourceText.value = nextSource
+}
+
+function handleCleanPdf() {
+  if (!sourceText.value) {
+    return
+  }
+  sourceText.value = cleanPdfText(sourceText.value)
+}
+
+function handleClear() {
+  sourceText.value = ''
+}
+
+async function handlePaste() {
+  try {
+    const clip = await navigator.clipboard.readText()
+    if (clip) {
+      sourceText.value = clip
+    }
+  }
+  catch (e) {
+    console.error('Failed to read clipboard:', e)
+  }
+}
+
+function handleHistorySelect(item: HistoryItem) {
+  sourceText.value = item.sourceText
+}
 </script>
 
 <template>
@@ -56,16 +119,75 @@ const { t } = useI18n()
         <div class="f-ring flex flex-col gap-4 w-full md:w-1/2 max-h-60dvh min-h-180px h-fit min-w-0">
           <div class="toolbar flex gap-2 items-center px-4 pt-4 min-w-0">
             <SourceSelect class="flex-shrink min-w-0" />
-            <div class="i-mingcute-arrow-right-line flex-shrink-0" />
+            <DouButton
+              small
+              :title="t('swap_languages')"
+              class="flex-shrink-0 flex items-center justify-center p-1.5!"
+              @click="handleSwap"
+            >
+              <div class="i-mingcute-transfer-line text-base" />
+            </DouButton>
             <TargetSelect class="flex-shrink min-w-0" />
+
+            <div class="ms-auto flex items-center gap-1.5 flex-shrink-0">
+              <DouButton
+                small
+                :title="t('history')"
+                class="flex items-center gap-1 text-xs py-1.5 px-2.5"
+                @click="historyOpen = true"
+              >
+                <div class="i-mingcute-history-line text-base" />
+                <span class="hidden sm:inline">{{ t('history') }}</span>
+              </DouButton>
+            </div>
           </div>
           <textarea
             ref="textarea" v-model="sourceText" :disabled="disabledTextarea" name="input" row="1"
             :placeholder="t('input_placeholder')" class="outline-none w-full resize-none px-4 text-xl flex-grow min-h-0"
           />
-          <div class="toolbar flex gap-2 items-center px-4 pb-4 justify-end">
-            <SpeechButton :text="sourceText" :lang="realSourceLanguage" />
-            <CopyButton :text="sourceText" />
+          <div class="toolbar flex gap-2 items-center px-4 pb-4 justify-between">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <!-- 清洗 PDF 换行 -->
+              <DouButton
+                v-if="sourceText"
+                small
+                :title="t('clean_pdf_title')"
+                class="flex items-center gap-1 text-xs py-1 px-2 text-amber-600 dark:text-amber-400"
+                @click="handleCleanPdf"
+              >
+                <div class="i-mingcute-broom-line text-sm" />
+                <span>{{ t('clean_pdf') }}</span>
+              </DouButton>
+
+              <!-- 清空输入 -->
+              <DouButton
+                v-if="sourceText"
+                small
+                :title="t('clear_input')"
+                class="flex items-center gap-1 text-xs py-1 px-2 text-red-500! hover:bg-red-500/10!"
+                @click="handleClear"
+              >
+                <div class="i-mingcute-close-line text-sm" />
+                <span>{{ t('clear_input') }}</span>
+              </DouButton>
+
+              <!-- 粘贴剪贴板 -->
+              <DouButton
+                v-else
+                small
+                :title="t('paste')"
+                class="flex items-center gap-1 text-xs py-1 px-2 opacity-75"
+                @click="handlePaste"
+              >
+                <div class="i-mingcute-clipboard-line text-sm" />
+                <span>{{ t('paste') }}</span>
+              </DouButton>
+            </div>
+
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <SpeechButton :text="sourceText" :lang="realSourceLanguage" />
+              <CopyButton :text="sourceText" />
+            </div>
           </div>
         </div>
 
@@ -183,6 +305,7 @@ const { t } = useI18n()
         </div>
       </div>
     </template>
+    <HistoryDrawer v-model:open="historyOpen" @select="handleHistorySelect" />
   </div>
 </template>
 
