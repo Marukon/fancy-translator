@@ -17,7 +17,7 @@ useDarkMode()
       >
         <Logo :stroke-width="1.25" class="text-0.875em" />
       </div>
-      Fancy Translator
+      Bubu Fanyi
     </h1>
     <div class="flex gap-2 items-center">
       <SettingsModal />
