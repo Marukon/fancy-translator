@@ -184,7 +184,7 @@ function handleHistorySelect(item: HistoryItem) {
             <div class="flex items-center gap-2 flex-wrap">
               <!-- 清洗 PDF 换行 -->
               <DouButton
-                v-if="sourceText"
+                v-if="sourceText && !autoCleanPdf"
                 small
                 :title="t('clean_pdf_title')"
                 class="flex items-center gap-1 text-xs py-1 px-2 text-amber-600 dark:text-amber-400"
