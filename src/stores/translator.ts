@@ -493,6 +493,105 @@ export const useTranslatorStore = defineStore('translator', () => {
     }
   }
 
+  /**
+   * 预热翻译模型：页面加载后在后台预先创建 en→zh-Hans 翻译器实例，
+   * 使用户首次输入文字时无需等待模型下载/初始化，实现秒级翻译响应。
+   */
+  async function preloadDefaultTranslator() {
+    // 如果已经有翻译器实例，无需预热
+    if (translatorStatus.value?.instance) {
+      return
+    }
+    const translatorAPI = getTranslatorAPI()
+    if (!translatorAPI) {
+      return
+    }
+
+    const preloadSource = 'en'
+    const preloadTarget = 'zh-Hans'
+
+    // 尝试多种语言代码（兼容 Chrome 用 'zh' 和 Edge 用 'zh-Hans'）
+    const langCandidates = [
+      { src: preloadSource, tgt: preloadTarget },
+      { src: preloadSource, tgt: 'zh' },
+    ]
+
+    let bestPair = langCandidates[0]
+    let status: any = 'unavailable'
+
+    for (const pair of langCandidates) {
+      try {
+        if (typeof translatorAPI.availability === 'function') {
+          status = await translatorAPI.availability({
+            sourceLanguage: pair.src,
+            targetLanguage: pair.tgt,
+          })
+        } else if (typeof translatorAPI.capabilities === 'function') {
+          const caps = await translatorAPI.capabilities()
+          status = caps.available
+        }
+        if (status === 'downloading' || status === 'downloadable' || status === 'available' || status === 'readily' || status === 'after-download') {
+          bestPair = pair
+          break
+        }
+      } catch (_e) {}
+    }
+
+    if (status === 'unavailable' || status === 'no') {
+      return
+    }
+
+    try {
+      const createFn = typeof translatorAPI.create === 'function'
+        ? translatorAPI.create.bind(translatorAPI)
+        : (typeof translatorAPI.createTranslator === 'function' ? translatorAPI.createTranslator.bind(translatorAPI) : null)
+      if (!createFn) return
+
+      const instance = await createFn({
+        sourceLanguage: bestPair.src,
+        targetLanguage: bestPair.tgt,
+        monitor(monitor: any) {
+          monitor.addEventListener('downloadprogress', (e: any) => {
+            if (translatorStatus.value) {
+              translatorStatus.value.progress = e.loaded || 0
+            }
+          })
+        },
+      })
+
+      // 预热完成后，只有在还没有其他翻译器实例时才设置
+      if (!translatorStatus.value?.instance) {
+        translatorStatus.value = {
+          sourceLanguage: preloadSource,
+          targetLanguage: preloadTarget,
+          noNeedToDownload: status === 'available' || status === 'readily',
+          status: 'ready',
+          error: undefined,
+          progress: 100,
+          instance,
+        }
+        console.log('[Translator] Preloaded en→zh-Hans translator instance')
+      } else {
+        // 已有实例，销毁预热的实例
+        instance.destroy?.()
+      }
+    } catch (e) {
+      console.warn('[Translator] Preload failed (non-blocking):', e)
+    }
+  }
+
+  // 页面加载后延迟 500ms 开始预热，避免阻塞首屏渲染
+  setTimeout(() => {
+    preloadDefaultTranslator()
+  }, 500)
+
+  // 同时预热语言检测器
+  setTimeout(() => {
+    if (isLanguageDetectorSupported.value && !languageDetectorStatus.value?.instance) {
+      initLanguageDetector()
+    }
+  }, 600)
+
   return {
     isTranslatorSupported,
     isLanguageDetectorSupported,
