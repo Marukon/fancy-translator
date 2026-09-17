@@ -15,6 +15,7 @@ import { useDisplayName } from '@/composables/useDisplayName'
 import { type HistoryItem, useHistoryStore } from '@/stores/history'
 import { useTranslatorStore } from '@/stores/translator'
 import { cleanPdfText } from '@/utils/text.util'
+import { renderMarkdown } from '@/utils/markdown.util'
 
 const displayName = useDisplayName()
 
@@ -50,6 +51,10 @@ const { textarea } = useTextareaAutosize({ styleProp: 'height', input: sourceTex
 
 const replacedTranslationResult = computed(() => {
   return (translateResult?.value?.result || '').replace(/<br>/g, '\n').trim()
+})
+
+const renderedMarkdown = computed(() => {
+  return renderMarkdown(replacedTranslationResult.value)
 })
 
 const { t } = useI18n()
@@ -368,7 +373,14 @@ function handleHistorySelect(item: HistoryItem) {
                 {{ translateResult?.error?.message }}
               </div>
               <template v-else>
-                <div class="whitespace-pre-wrap text-justify">
+                <!-- 词典模式下支持渲染结构化 Markdown -->
+                <div
+                  v-if="isCurrentDictionary"
+                  class="markdown-output text-base leading-relaxed select-text"
+                  v-html="renderedMarkdown || '...'"
+                />
+                <!-- 普通翻译模式下保留原生纯文本排版 -->
+                <div v-else class="whitespace-pre-wrap text-justify select-text">
                   {{ replacedTranslationResult || '...' }}
                 </div>
                 <div class="toolbar flex gap-2 items-center justify-end pt-4 text-base">
@@ -395,5 +407,21 @@ function handleHistorySelect(item: HistoryItem) {
 .error-container {
   --uno: flex items-center justify-center rounded-xl text-sm md:text-lg py-4 px-6 mx-auto;
   --uno: select-none;
+}
+
+:deep(.markdown-output) {
+  --uno: w-full leading-relaxed;
+
+  code {
+    --uno: font-mono text-xs px-1.5 py-0.5 rounded bg-dark-500/10 dark:bg-light-300/10 text-teal-700 dark:text-teal-300 font-medium select-all;
+  }
+
+  strong {
+    --uno: font-semibold;
+  }
+
+  blockquote {
+    --uno: border-s-3 border-teal-500/50 ps-3 my-1.5 opacity-85 italic;
+  }
 }
 </style>
