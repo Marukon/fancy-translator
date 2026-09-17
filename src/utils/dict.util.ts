@@ -18,10 +18,10 @@ export interface DictionaryOptions {
  * 规则（严格对标“混元软件开发”规范）：
  * 1. 判空；
  * 2. 包含硬回车换行（\r/\n）则判定为段落，非单词；
- * 3. 包含标点符号（,.。!?！？;；:：）判定为短语或句子，非单词；
- * 4. 长度超过 30 个字符不按单字查词；
- * 5. 外文：严格单个单词（words 长度为 1 且不包含空格），输入更多单词或空格时自动切回翻译模式；
- * 6. 中文：严格 1~4 个汉字（如单字、词语、四字成语）且无空格，输入更多汉字或空格时自动切回翻译模式。
+ * 3. 包含断句标点（.。!?！？;；）判定为句子，非单字；
+ * 4. 长度超过 50 个字符不按单字查词；
+ * 5. 外文单词数 <= 4 且无中文（支持短语如 look forward to / break down）；
+ * 6. 中文字符数 <= 8 且无外文单词（如 成语、单字词语）；
  */
 export function isDictionaryCandidate(text: string): boolean {
   if (!text) return false
@@ -29,21 +29,14 @@ export function isDictionaryCandidate(text: string): boolean {
   if (!clean) return false
 
   if (clean.includes('\n') || clean.includes('\r')) return false
-  if (/[,.。!?！？;；:：]/.test(clean)) return false
-  if (clean.length > 30) return false
+  if (/[.。!?！？;；]$/.test(clean) || /[.。!?！？]/.test(clean)) return false
+  if (clean.length > 50) return false
 
   const words = clean.match(/[a-zA-Z0-9'-]+/g) || []
   const cjkChars = clean.match(/[\u4e00-\u9fff]/g) || []
 
-  // 中文单字/词语/成语：1~4 个汉字且不含空格
-  if (cjkChars.length > 0 && cjkChars.length <= 4 && words.length === 0 && !clean.includes(' ')) {
-    return true
-  }
-
-  // 西文/外文单词：严格单个单词（words 长度为 1 且不含空格）
-  if (words.length === 1 && cjkChars.length === 0 && !clean.includes(' ')) {
-    return true
-  }
+  if (cjkChars.length > 0 && cjkChars.length <= 8 && words.length === 0) return true
+  if (words.length > 0 && words.length <= 4 && cjkChars.length === 0) return true
 
   return false
 }
