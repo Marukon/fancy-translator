@@ -7,6 +7,7 @@ import DouButton from '@/components/base/DouButton.vue'
 import DouProgress from '@/components/base/DouProgress.vue'
 import CopyButton from '@/components/CopyButton.vue'
 import HistoryDrawer from '@/components/HistoryDrawer.vue'
+import ModeSelect from '@/components/ModeSelect.vue'
 import SourceSelect from '@/components/SourceSelect.vue'
 import SpeechButton from '@/components/SpeechButton.vue'
 import TargetSelect from '@/components/TargetSelect.vue'
@@ -36,6 +37,7 @@ const {
   translateResult,
   languageDetectionList,
   supportMoreLanguages,
+  isCurrentDictionary,
 } = storeToRefs(translatorStore)
 
 const disabledTextarea = computed(() => {
@@ -161,6 +163,7 @@ function handleHistorySelect(item: HistoryItem) {
               <div class="i-mingcute-transfer-line text-base" />
             </DouButton>
             <TargetSelect class="flex-shrink min-w-0" />
+            <ModeSelect class="flex-shrink min-w-0" />
 
             <div class="ms-auto flex items-center gap-1.5 flex-shrink-0">
               <DouButton
@@ -266,8 +269,10 @@ function handleHistorySelect(item: HistoryItem) {
           <h1
             class="text-2xl font-light p-4 flex select-none items-center justify-between text-dark-500/50 dark:text-light-300/50"
           >
-            {{ t('translate_result') }}
-            <div v-if="isTranslating" class="i-mingcute-loading-3-line animate-spin" />
+            <span :class="{ 'text-teal-600 dark:text-teal-400 font-normal': isCurrentDictionary }">
+              {{ isCurrentDictionary ? `📖 ${t('dictionary_analysis')}` : t('translate_result') }}
+            </span>
+            <div v-if="isTranslating" class="i-mingcute-loading-3-line animate-spin text-teal-600 dark:text-teal-400" />
             <div v-else-if="translateResult?.duration" class="text-sm text-gray-400 dark:text-gray-500">
               {{ translateResult?.duration?.toFixed(2) }} ms
             </div>

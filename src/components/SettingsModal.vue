@@ -8,7 +8,7 @@ const open = ref(false)
 const { t } = useI18n()
 
 const translatorStore = useTranslatorStore()
-const { supportMoreLanguages } = storeToRefs(translatorStore)
+const { supportMoreLanguages, dictShowPhonetics, dictShowExamples } = storeToRefs(translatorStore)
 </script>
 
 <template>
@@ -57,6 +57,44 @@ const { supportMoreLanguages } = storeToRefs(translatorStore)
               </span>
               <span class="text-xs text-dark-500/70 dark:text-light-400/70 leading-relaxed">
                 {{ t('support_more_languages_desc') }}
+              </span>
+            </div>
+          </label>
+
+          <div class="pt-2 pb-1 border-t border-dark-500/10 dark:border-light-300/10">
+            <span class="text-xs font-semibold text-dark-400 dark:text-light-400 uppercase tracking-wider">
+              📖 {{ t('dict_options_title') }}
+            </span>
+          </div>
+
+          <label class="setting-item flex items-start gap-3 cursor-pointer p-3 rounded-xl border-1 border-dark-500/10 dark:border-light-300/10 hover:bg-dark-500/5 dark:hover:bg-light-300/5 transition">
+            <input
+              v-model="dictShowPhonetics"
+              type="checkbox"
+              class="cursor-pointer accent-teal-600 mt-1 w-4 h-4 rounded"
+            >
+            <div class="flex flex-col gap-0.5">
+              <span class="text-sm font-medium text-dark-800 dark:text-light-100">
+                {{ t('dict_show_phonetics') }}
+              </span>
+              <span class="text-xs text-dark-500/70 dark:text-light-400/70 leading-relaxed">
+                {{ t('dict_show_phonetics_desc') }}
+              </span>
+            </div>
+          </label>
+
+          <label class="setting-item flex items-start gap-3 cursor-pointer p-3 rounded-xl border-1 border-dark-500/10 dark:border-light-300/10 hover:bg-dark-500/5 dark:hover:bg-light-300/5 transition">
+            <input
+              v-model="dictShowExamples"
+              type="checkbox"
+              class="cursor-pointer accent-teal-600 mt-1 w-4 h-4 rounded"
+            >
+            <div class="flex flex-col gap-0.5">
+              <span class="text-sm font-medium text-dark-800 dark:text-light-100">
+                {{ t('dict_show_examples') }}
+              </span>
+              <span class="text-xs text-dark-500/70 dark:text-light-400/70 leading-relaxed">
+                {{ t('dict_show_examples_desc') }}
               </span>
             </div>
           </label>

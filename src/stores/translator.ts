@@ -3,6 +3,7 @@ import { acceptHMRUpdate, defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { LANGUAGES } from '@/constants/lang'
+import { isDictionaryCandidate, resolveDictionaryEntry } from '@/utils/dict.util'
 
 export interface LanguageDetectionResult {
   detectedLanguage: string
@@ -52,6 +53,9 @@ export const useTranslatorStore = defineStore('translator', () => {
   const translatorStatus = ref<TranslatorStatusItem>()
   const languageDetectorStatus = ref<LanguageDetectorStatusItem>()
   const supportMoreLanguages = useStorage('fancy_support_more_languages', false)
+  const translationMode = useStorage<'auto' | 'translate' | 'dictionary'>('fancy_translation_mode', 'auto')
+  const dictShowPhonetics = useStorage('fancy_dict_show_phonetics', false)
+  const dictShowExamples = useStorage('fancy_dict_show_examples', false)
 
   watch(supportMoreLanguages, (val) => {
     if (!val) {
@@ -63,6 +67,12 @@ export const useTranslatorStore = defineStore('translator', () => {
       _targetLanguage.value = 'zh-Hans'
     }
     translate(_sourceText.value)
+  })
+
+  watch([translationMode, dictShowPhonetics, dictShowExamples], () => {
+    if (_sourceText.value?.trim()) {
+      translate(_sourceText.value)
+    }
   })
 
   let firstTime = true
@@ -97,6 +107,14 @@ export const useTranslatorStore = defineStore('translator', () => {
     }
     return 'zh-Hans'
   })
+
+  const resolvedMode = computed<'translate' | 'dictionary'>(() => {
+    if (translationMode.value === 'dictionary') return 'dictionary'
+    if (translationMode.value === 'translate') return 'translate'
+    return isDictionaryCandidate(_sourceText.value) ? 'dictionary' : 'translate'
+  })
+
+  const isCurrentDictionary = computed(() => resolvedMode.value === 'dictionary')
 
   const sourceLanguage = computed({
     get: () => _sourceLanguage.value,
@@ -327,6 +345,57 @@ export const useTranslatorStore = defineStore('translator', () => {
     if (isOutdated()) {
       return
     }
+
+    if (resolvedMode.value === 'dictionary') {
+      try {
+        translateResult.value = {
+          error: undefined,
+          result: '',
+          duration: performance.now() - start,
+        }
+
+        const helperTranslate = async (t: string) => {
+          if (translatorStatus.value?.instance?.translate) {
+            try {
+              return await translatorStatus.value.instance.translate(t)
+            }
+            catch {}
+          }
+          return t
+        }
+
+        const targetLangName = targetLanguage === 'zh-Hans' ? '中文' : (targetLanguage === 'en' ? '英语' : targetLanguage)
+
+        const res = await resolveDictionaryEntry(text, {
+          showPhonetics: dictShowPhonetics.value,
+          showExamples: dictShowExamples.value,
+          targetLangName,
+          signal: controller.signal,
+          onChunk: (chunk) => {
+            if (isOutdated()) return
+            translateResult.value.result = chunk
+            translateResult.value.duration = performance.now() - start
+          },
+          translatorTranslate: helperTranslate,
+        })
+
+        if (isOutdated()) return
+        translateResult.value.result = res
+        translateResult.value.duration = performance.now() - start
+        isTranslating.value = false
+        return
+      }
+      catch (error) {
+        if (isOutdated()) return
+        translateResult.value = {
+          error: error as Error,
+          result: '',
+        }
+        isTranslating.value = false
+        return
+      }
+    }
+
     if (!translatorStatus.value?.instance) {
       isTranslating.value = false
       return
@@ -606,6 +675,12 @@ export const useTranslatorStore = defineStore('translator', () => {
     realSourceLanguage: _realSourceLanguage,
     languageDetectionList,
     supportMoreLanguages,
+    translationMode,
+    dictShowPhonetics,
+    dictShowExamples,
+    resolvedMode,
+    isCurrentDictionary,
+    translate,
   }
 })
 
