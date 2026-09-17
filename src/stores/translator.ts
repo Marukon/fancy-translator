@@ -346,7 +346,9 @@ export const useTranslatorStore = defineStore('translator', () => {
       return
     }
 
-    if (resolvedMode.value === 'dictionary') {
+    const isDict = translationMode.value === 'dictionary' || (translationMode.value === 'auto' && isDictionaryCandidate(text))
+
+    if (isDict) {
       try {
         translateResult.value = {
           error: undefined,
@@ -397,6 +399,11 @@ export const useTranslatorStore = defineStore('translator', () => {
     }
 
     if (!translatorStatus.value?.instance) {
+      translateResult.value = {
+        error: undefined,
+        result: '',
+        duration: undefined,
+      }
       isTranslating.value = false
       return
     }
