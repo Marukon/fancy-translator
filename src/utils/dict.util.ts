@@ -42,40 +42,71 @@ export function isDictionaryCandidate(text: string): boolean {
 }
 
 /**
- * 尝试通过浏览器原生 Chrome Prompt API (Gemini Nano) 解析
+ * 严格按照设置过滤词典输出（双重保底兜底）
  */
-async function streamFromBrowserAi(
-  prompt: string,
-  signal?: AbortSignal,
-  onChunk?: (chunk: string) => void,
-): Promise<string> {
-  const aiObj = (globalThis as any).ai
-  const lm = aiObj?.languageModel || (globalThis as any).LanguageModel
-  if (!lm || typeof lm.create !== 'function') {
-    throw new Error('未启用浏览器端 Prompt API')
-  }
+export function filterDictOutput(
+  text: string,
+  showPhonetics: boolean,
+  showExamples: boolean,
+): string {
+  if (!text) return ''
+  let lines = text.split('\n')
 
-  const session = await lm.create({
-    systemPrompt: '你是一个权威双语电子词典助手，直接输出精炼、排版优美的结构化词典条目。',
-    signal,
-  })
+  if (!showExamples) {
+    const filtered: string[] = []
+    let inExampleBlock = false
 
-  let fullText = ''
-  if (typeof session.promptStreaming === 'function') {
-    const stream = session.promptStreaming(prompt, { signal })
-    for await (const chunk of stream) {
-      if (signal?.aborted) break
-      fullText = chunk
-      onChunk?.(fullText)
+    for (const line of lines) {
+      const trimmed = line.trim()
+      // 匹配“例句”、“双语例句”、“Example”、“Examples”作为标题或小节开头
+      if (
+        /^(?:[-*•#>\s]*)?(?:[【\[(]?\s*(?:双语)?(?:实用)?例句\s*[】\])]?|Examples?)[：:]/i.test(trimmed)
+        || /^(?:[-*•#>\s]*)?(?:例\s*\d*|eg\.|e\.g\.)[：:]/i.test(trimmed)
+      ) {
+        inExampleBlock = true
+        continue
+      }
+
+      // 如果进入了例句块，遇到后续新的词性分类（如 [名词]、[动词]、[n.] 等），退出例句块
+      if (
+        inExampleBlock
+        && /^(?:[-*•#>\s]*)?(?:\[[a-zA-Z.]+\]|[【\[](?:名词|动词|形容词|副词|代词|介词|连词|感叹词|释义)[】\]])/i.test(trimmed)
+      ) {
+        inExampleBlock = false
+      }
+
+      if (!inExampleBlock) {
+        // 过滤单行包含“*例句: ...*”或“• 例句: ...”
+        if (!/^(?:[-*•\s]*)?(?:[【\[(]?\s*(?:双语)?例句\s*[】\])]?|Examples?)[：:]/i.test(trimmed)) {
+          filtered.push(line)
+        }
+      }
     }
-  }
-  else {
-    fullText = await session.prompt(prompt, { signal })
-    onChunk?.(fullText)
+    lines = filtered
   }
 
-  session.destroy?.()
-  return fullText
+  if (!showPhonetics) {
+    lines = lines.filter((line) => {
+      const trimmed = line.trim()
+      if (
+        /^(?:[-*•#>\s]*)?(?:[【\[(]?\s*(?:英美)?(?:音标|读音|发音)\s*[】\])]?|Phonetics?|Pronunciation)[：:]/i.test(trimmed)
+      ) {
+        return false
+      }
+      // 过滤类似 "[美] /.../  [英] /.../" 的独立音标行
+      if (
+        /^(?:[-*•\s]*)?(?:(?:\[?(?:美|英|UK|US)\]?|\/|\[)[\s\S]*(?:\/|\])\s*)+$/.test(trimmed)
+        && trimmed.length < 40
+        && !trimmed.includes('：')
+        && !trimmed.includes(':')
+      ) {
+        return false
+      }
+      return true
+    })
+  }
+
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n')
 }
 
 /**
@@ -87,18 +118,86 @@ function buildBrowserDictPrompt(
   showPhonetics: boolean = false,
   showExamples: boolean = false,
 ): string {
-  let prompt = `请将以下词语作为词典词条进行权威解析，列出其词性和常用${targetLangName}释义`
-  if (showPhonetics && showExamples) {
-    prompt += '，并附带英美音标或标准读音以及典型地道双语实用例句'
+  const rules: string[] = [
+    `请将以下词语作为词典词条进行权威解析，列出其常用词性和${targetLangName}释义。`,
+  ]
+
+  if (showPhonetics) {
+    rules.push('- 音标要求：请在词条后标明英美音标或标准读音。')
   }
-  else if (showPhonetics) {
-    prompt += '，并附带英美音标或标准读音'
+  else {
+    rules.push('- 音标要求：严格禁止输出任何音标或注音，不需要发音标注。')
   }
-  else if (showExamples) {
-    prompt += '，并附带典型地道双语实用例句'
+
+  if (showExamples) {
+    rules.push('- 例句要求：请附带1~2条典型地道实用的双语例句。')
   }
-  prompt += `：\n\n要求排版层次分明、紧凑清晰，无需多余开场白，直接输出解析结果。\n词条：\n${text.trim()}`
-  return prompt
+  else {
+    rules.push('- 例句要求：严格禁止输出任何例句！绝对不要输出任何双语例句、用法例句或示例句子。')
+  }
+
+  rules.push('- 格式要求：层次分明、极简专业，严禁任何前言废话、开场白或多余说明，直接输出条目。')
+
+  return `${rules.join('\n')}\n\n待解析词条：\n${text.trim()}`
+}
+
+/**
+ * 尝试通过浏览器原生 Chrome Prompt API (Gemini Nano) 解析
+ */
+async function streamFromBrowserAi(
+  prompt: string,
+  options: DictionaryOptions,
+): Promise<string> {
+  const aiObj = (globalThis as any).ai
+  const lm = aiObj?.languageModel || (globalThis as any).LanguageModel
+  if (!lm || typeof lm.create !== 'function') {
+    throw new Error('未启用浏览器端 Prompt API')
+  }
+
+  const session = await lm.create({
+    systemPrompt: '你是一个严格执行用户格式限制的双语词典解析引擎。当用户禁止输出例句时严禁包含任何例句，当用户禁止输出音标时严禁包含音标。仅输出精炼的词性与释义。',
+    signal: options.signal,
+  })
+
+  let fullText = ''
+  const emitChunk = (text: string) => {
+    const filtered = filterDictOutput(
+      text,
+      options.showPhonetics ?? false,
+      options.showExamples ?? false,
+    )
+    options.onChunk?.(filtered)
+  }
+
+  if (typeof session.promptStreaming === 'function') {
+    const stream = session.promptStreaming(prompt, { signal: options.signal })
+    for await (const chunk of stream) {
+      if (options.signal?.aborted) break
+      if (typeof chunk === 'string') {
+        // 关键修复：Chrome Prompt API 在部分版本下返回增量 delta，在部分版本下返回全量文本
+        // 如果 chunk 以已有 fullText 开头且更长，则为全量；否则为增量追加，避免文字被逐字顶替消失
+        if (chunk.startsWith(fullText) && chunk.length >= fullText.length) {
+          fullText = chunk
+        }
+        else {
+          fullText += chunk
+        }
+        emitChunk(fullText)
+      }
+    }
+  }
+  else {
+    fullText = await session.prompt(prompt, { signal: options.signal })
+    emitChunk(fullText)
+  }
+
+  session.destroy?.()
+
+  return filterDictOutput(
+    fullText,
+    options.showPhonetics ?? false,
+    options.showExamples ?? false,
+  )
 }
 
 /**
@@ -119,7 +218,7 @@ export async function resolveDictionaryEntry(
       options.showPhonetics || false,
       options.showExamples || false,
     )
-    return await streamFromBrowserAi(prompt, options.signal, options.onChunk)
+    return await streamFromBrowserAi(prompt, options)
   }
   catch {
     // 降级使用浏览器的翻译引擎 + 词典排版合成
@@ -189,9 +288,14 @@ export async function resolveDictionaryEntry(
             lines.push('')
           }
 
-          const result = lines.join('\n').trim()
-          options.onChunk?.(result)
-          return result
+          const rawResult = lines.join('\n').trim()
+          const finalResult = filterDictOutput(
+            rawResult,
+            options.showPhonetics ?? false,
+            options.showExamples ?? false,
+          )
+          options.onChunk?.(finalResult)
+          return finalResult
         }
       }
     }
@@ -210,7 +314,12 @@ export async function resolveDictionaryEntry(
     lines.splice(1, 0, `🔊 读音：\`/${cleanWord}/\``)
   }
 
-  const result = lines.join('\n')
-  options.onChunk?.(result)
-  return result
+  const rawResult = lines.join('\n')
+  const finalResult = filterDictOutput(
+    rawResult,
+    options.showPhonetics ?? false,
+    options.showExamples ?? false,
+  )
+  options.onChunk?.(finalResult)
+  return finalResult
 }
