@@ -6,7 +6,7 @@ Fancy Translator 是一个**完全在浏览器本地运行**的翻译工具。�
 
 > 本项目基于优秀的开源项目 [daidr/fancy-translator](https://github.com/daidr/fancy-translator) 二次开发。
 >
-> 当前仓库是面向 **Microsoft Edge 适配**、**三种工作模式（自动 / 翻译 / 词典）**、**PDF 与论文粘贴清洗**、**历史记录抽屉**等方向深度改造的版本。
+> 当前仓库是面向 **Microsoft Edge 和 Chrome 适配**、**三种工作模式（自动 / 翻译 / 词典）**、**PDF 与论文粘贴清洗**、**历史记录抽屉**等方向深度改造的版本。
 
 ---
 
